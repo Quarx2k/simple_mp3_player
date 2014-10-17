@@ -12,6 +12,7 @@
     <string name="artist">Artist:&#160;</string>
     <string name="song">Song:&#160;</string>
     <string name="duration">Duration:&#160;</string>
+    <string name="file_name">File Name:&#160;</string>
 
 
 </resources>

@@ -378,14 +378,17 @@ public class MainActivity extends Activity {
     public void updateMediaMetadata(String mediaFile, int num) {
         metaRetriver = new MediaMetadataRetriever();
         metaRetriver.setDataSource(mediaFile);
+        File file = new File(mediaFile);
         long durationMsec = Long.parseLong(metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
         long duration = durationMsec / 1000;
         long h = duration / 3600;
         long m = (duration - h * 3600) / 60;
         long s = duration - (h * 3600 + m * 60);
+        String artist = getString(R.string.artist) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n";
+        String song = getString(R.string.song) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n";
+        String fileName = getString(R.string.file_name) + file.getName() + "\n";
 
-        mMusicData.set(num,new MusicData(getString(R.string.artist) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n" +
-                getString(R.string.song) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n" +
+        mMusicData.set(num,new MusicData(artist  +  song  + fileName +
                 getString(R.string.duration) + m + ":" + s));
 
         adapter.notifyDataSetChanged();
