@@ -17,6 +17,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.Layout;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -272,7 +273,7 @@ public class MainActivity extends Activity {
         ArrayList<String> files = new ArrayList<String>();
         FileInputStream fstream;
         downloadFile(url, -2);
-        fstream = new FileInputStream(Environment.getExternalStorageDirectory().getPath() + "/" + "links.txt");
+        fstream = new FileInputStream(destDir + "links.txt");
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
