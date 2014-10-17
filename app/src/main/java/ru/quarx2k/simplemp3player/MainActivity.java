@@ -3,21 +3,23 @@ package ru.quarx2k.simplemp3player;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.util.Log;
+import android.text.Layout;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.TextView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
@@ -33,36 +35,64 @@ import java.net.URL;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-
     private static final String TAG = "SimpleMp3Player";
+    ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
     MediaMetadataRetriever metaRetriver;
+    CustomAdapter adapter;
+    public View row;
+    private MediaPlayer mediaPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ArrayList<String> files = new ArrayList<String>();
+        final ListView musicList = (ListView) this.findViewById(R.id.MusicList);
+        adapter = new CustomAdapter(this, mMusicData, R.layout.activity_main);
 
         // Create dir in Android/data/
-        String pName =  this.getPackageName();
-        File myFilesDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files");
+        String pName = this.getPackageName();
+        String destDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files";
+        File myFilesDir = new File(destDir);
         myFilesDir.mkdirs();
-        try {
-           files = readPlaylisfromUrl("http://quarx2k.ru/.mp3/links.txt");
-        } catch (IOException e) {
-            AlertDialog.Builder alert = new AlertDialog.Builder(this);
-            alert.setMessage("Error while downloading list of files");
-            alert.setPositiveButton("Ok",
-                    new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int id) {
-                            dialog.cancel();
-                        }
-                    });
 
-            AlertDialog alert1 = alert.create();
-            alert1.show();
-            e.printStackTrace();
+        ArrayList<String> files = new ArrayList<String>();
+        try {
+            files = readPlaylisfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
+            for (int i = 0; i < files.size(); i++) {
+
+                mMusicData.add(new MusicData(files.get(i)));
+                final String item = mMusicData.get(i).name;
+                final String fname = new File(item.toString()).getName();
+                final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
+                File file = new File(fullPath);
+                if (file.exists()) {
+                    updateMediaMetadata(fullPath, i);
+                } else {
+                    downloadFile(item.toString(), i);
+                }
+            }
+        } catch (IOException e) {
         }
+
+        musicList.setAdapter(adapter);
+
+        musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                String pName = getPackageName();
+                final String item = mMusicData.get(i).name;
+                final String fname = new File(item.toString()).getName();
+                final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
+                if (row != null) {
+                    row.setBackgroundResource(android.R.color.holo_orange_light);
+                }
+                row = view;
+                view.setBackgroundResource(android.R.color.holo_orange_light);
+            }
+        });
+    }
+/*
+        */
 
         /*
         // Read list of files  TODO for sdcard
@@ -83,18 +113,12 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         */
-
-        // Add array of files to ListView
-        final ListView fileList = (ListView) findViewById(R.id.fileList);
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, files);
-        fileList.setAdapter(adapter);
-
-        fileList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        /* //Download on click
+        musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, final View view,
-                                    int position, long id) {
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 String pName =  getPackageName();
-                final String item = (String) parent.getItemAtPosition(position);
+                final String item = mMusicData.get(i).name;
                 final String fname = new File(item.toString()).getName();
                 final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
                 File file = new File(fullPath);
@@ -103,11 +127,10 @@ public class MainActivity extends Activity {
                     Toast.makeText(getApplicationContext(), "This file already downloaded", Toast.LENGTH_SHORT).show();
                     return;
                 } else {
-                    downloadFile(item.toString(), view);
+                    downloadFile(item.toString(), i);
                 }
             }
-        });
-    }
+        }); */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -131,13 +154,12 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-/*  TODO for sdcard
     public ArrayList<String> readPlaylisfromSdcard(String fname) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
         FileInputStream fstream;
-        fstream = new FileInputStream(Environment.getExternalStorageDirectory().getPath() + "/" + "fname);
+        fstream = new FileInputStream(Environment.getExternalStorageDirectory().getPath() + "/" + "fname");
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
@@ -148,13 +170,13 @@ public class MainActivity extends Activity {
         return files;
 
     }
-*/
+
     public ArrayList<String> readPlaylisfromUrl(String url) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
         FileInputStream fstream;
-        downloadFile(url, null);
+        downloadFile(url, -2);
         fstream = new FileInputStream(Environment.getExternalStorageDirectory().getPath() + "/" + "links.txt");
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
@@ -167,8 +189,7 @@ public class MainActivity extends Activity {
 
     }
 
-    private void downloadFile(final String url, final View view) {
-        final ProgressDialog progressDialog = new ProgressDialog(this);
+    private void downloadFile(final String url, final int num) {
         final String pname =  this.getPackageName();
         final String fname = new File(url.toString()).getName();
         final File downloadDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pname + "/files/" + fname);
@@ -178,18 +199,10 @@ public class MainActivity extends Activity {
 
             @Override
             protected void onPreExecute() {
-                /*
-                progressDialog.setMessage("Downloading ...");
-                progressDialog.setCancelable(false);
-                progressDialog.setMax(100);
-                progressDialog
-                        .setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-
-                progressDialog.show();
-                */
-                if (view != null) {
-                    ((TextView) view).setText("Downloading in progress....");
-                }
+                if (num >= 0 )
+                    mMusicData.set(num,new MusicData("Downloading in progress...." + "\n" + mMusicData.get(num).name));
+                if (adapter != null)
+                    adapter.notifyDataSetChanged();
             }
 
             @Override
@@ -257,20 +270,16 @@ public class MainActivity extends Activity {
 
                      AlertDialog alert1 = alert.create();
                     alert1.show();
-                   // progressDialog.hide();
                     return;
                 }
-                Toast.makeText(getApplicationContext(), "Download " + fname +" Finished", Toast.LENGTH_SHORT).show();
-                updateMediaMetadata(downloadDir.toString(),view);
-                //  progressDialog.hide();
+              //  Toast.makeText(getApplicationContext(), "Download " + fname +" Finished", Toast.LENGTH_SHORT).show();
+                if (num >= 0)
+                    updateMediaMetadata(downloadDir.toString(), num);
             }
         }.execute(url);
     }
 
-    public void updateMediaMetadata(String mediaFile, final View view) {
-        if (view == null) {
-            return;
-        }
+    public void updateMediaMetadata(String mediaFile, int num) {
         metaRetriver = new MediaMetadataRetriever();
         metaRetriver.setDataSource(mediaFile);
         long durationMsec = Long.parseLong(metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
@@ -279,8 +288,10 @@ public class MainActivity extends Activity {
         long m = (duration - h * 3600) / 60;
         long s = duration - (h * 3600 + m * 60);
 
-    ((TextView) view).setText(MediaMetadataRetriever.METADATA_KEY_ARTIST + " - " +
-                 metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n" +
-                 "Duration: " + m + ":" + s);
+        mMusicData.set(num,new MusicData("Artist: " + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n" +
+                "Album: "+ metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n" +
+                "Duration: " + m + ":" + s));
+
+        adapter.notifyDataSetChanged();
     }
 }
