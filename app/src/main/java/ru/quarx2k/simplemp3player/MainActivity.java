@@ -5,7 +5,9 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
@@ -28,6 +30,7 @@ import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,9 +46,9 @@ public class MainActivity extends Activity {
     MediaMetadataRetriever metaRetriver;
     CustomAdapter adapter;
     public View row;
-    private MediaPlayer mediaPlayer;
+    private MediaPlayer mediaPlayer = new MediaPlayer();
     private String destDir;
-
+    int current_song = -1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,7 +57,7 @@ public class MainActivity extends Activity {
         adapter = new CustomAdapter(this, mMusicData, R.layout.activity_main);
         ArrayList<String> files = new ArrayList<String>();
         destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
-        File playlist = new File(destDir + "/links.txt");
+        final File playlist = new File(destDir + "/links.txt");
 
         // Create dir in Android/data/
         File myFilesDir = new File(destDir);
@@ -114,28 +117,68 @@ public class MainActivity extends Activity {
         musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                String pName = getPackageName();
-                final String item = mMusicData.get(i).name;
-                final String fname = new File(item.toString()).getName();
-                final String fullPath = destDir + fname;
-                File file = new File(fullPath);
+                ArrayList<String> files = new ArrayList<String>();
+
+                try {
+                    files = readPlaylisfromSdcard(playlist.getPath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                File file = new File(files.get(i));
+                String fullPath = destDir + file.getName();
+
                 if (file.exists()) {
                     updateMediaMetadata(fullPath, i);
                     //  } else {
                     //      downloadFile(item.toString(), i);
                     //  }
                 }
-
                 if (row != null) {
-                    row.setBackgroundResource(android.R.color.holo_orange_light);
+                    row.setBackgroundResource(android.R.color.white);
                 }
-                row = view;
-                view.setBackgroundResource(android.R.color.holo_orange_light);
+                Toast.makeText(getApplicationContext(), fullPath, Toast.LENGTH_SHORT).show();
+
+                if(mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop();
+                    mediaPlayer.reset();
+                    row = view;
+                    view.setBackgroundResource(android.R.color.white);
+                    if (current_song != i) {
+                        row = view;
+                        view.setBackgroundResource(android.R.color.holo_red_dark);
+                        try {
+                            mediaPlayer.setDataSource(fullPath);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        try {
+                            mediaPlayer.prepare();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        mediaPlayer.start();
+                        current_song = i;
+                    }
+                } else {
+                    row = view;
+                    view.setBackgroundResource(android.R.color.holo_red_dark);
+                    current_song = i;
+                    try {
+                        mediaPlayer.setDataSource(fullPath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        mediaPlayer.prepare();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    mediaPlayer.start();
+                }
             }
         });
     }
-/*
-        */
 
         /*
         // Read list of files  TODO for sdcard
