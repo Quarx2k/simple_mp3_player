@@ -67,7 +67,7 @@ public class MainActivity extends Activity {
         if (!isNetworkAvailable()) {
             if (playlist.exists()) {
                 try {
-                    files = readPlaylisfromSdcard(playlist.getPath());
+                    files = readPlaylistfromSdcard(playlist.getPath());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -77,7 +77,6 @@ public class MainActivity extends Activity {
                     final String fname = new File(item.toString()).getName();
                     final String fullPath = destDir + fname;
                     File file = new File(fullPath);
-                    Toast.makeText(getApplicationContext(), fullPath, Toast.LENGTH_SHORT).show();
                     if (file.exists()) {
                         updateMediaMetadata(fullPath, i);
                     } else {
@@ -90,7 +89,7 @@ public class MainActivity extends Activity {
             }
         } else {
             try {
-                files = readPlaylisfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
+                files = readPlaylistfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
                 for (int i = 0; i < files.size(); i++) {
 
                     mMusicData.add(new MusicData(files.get(i)));
@@ -120,24 +119,26 @@ public class MainActivity extends Activity {
                 ArrayList<String> files = new ArrayList<String>();
 
                 try {
-                    files = readPlaylisfromSdcard(playlist.getPath());
+                    files = readPlaylistfromSdcard(playlist.getPath());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
 
+                if (i >= files.size() )
+                    return;
+
                 File file = new File(files.get(i));
-                String fullPath = destDir + file.getName();
+                file = new File(destDir + file.getName());
 
                 if (file.exists()) {
-                    updateMediaMetadata(fullPath, i);
-                    //  } else {
-                    //      downloadFile(item.toString(), i);
-                    //  }
+                    updateMediaMetadata(file.getPath(), i);
+                } else {
+                    Toast.makeText(getApplicationContext(), getString(R.string.file_not_exist), Toast.LENGTH_SHORT).show();
+                    return;
                 }
                 if (row != null) {
                     row.setBackgroundResource(android.R.color.white);
                 }
-                Toast.makeText(getApplicationContext(), fullPath, Toast.LENGTH_SHORT).show();
 
                 if(mediaPlayer.isPlaying()) {
                     mediaPlayer.stop();
@@ -146,9 +147,9 @@ public class MainActivity extends Activity {
                     view.setBackgroundResource(android.R.color.white);
                     if (current_song != i) {
                         row = view;
-                        view.setBackgroundResource(android.R.color.holo_red_dark);
+                        view.setBackgroundResource(android.R.color.holo_green_light);
                         try {
-                            mediaPlayer.setDataSource(fullPath);
+                            mediaPlayer.setDataSource(file.getPath());
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
@@ -162,10 +163,10 @@ public class MainActivity extends Activity {
                     }
                 } else {
                     row = view;
-                    view.setBackgroundResource(android.R.color.holo_red_dark);
+                    view.setBackgroundResource(android.R.color.holo_green_light);
                     current_song = i;
                     try {
-                        mediaPlayer.setDataSource(fullPath);
+                        mediaPlayer.setDataSource(file.getPath());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -247,7 +248,7 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-    public ArrayList<String> readPlaylisfromSdcard(String fname) throws IOException {
+    public ArrayList<String> readPlaylistfromSdcard(String fname) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
@@ -264,7 +265,7 @@ public class MainActivity extends Activity {
 
     }
 
-    public ArrayList<String> readPlaylisfromUrl(String url) throws IOException {
+    public ArrayList<String> readPlaylistfromUrl(String url) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
