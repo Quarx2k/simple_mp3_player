@@ -165,6 +165,7 @@ public class MainActivity extends Activity {
                     row = view;
                     view.setBackgroundResource(android.R.color.holo_green_light);
                     current_song = i;
+                    mediaPlayer.reset();
                     try {
                         mediaPlayer.setDataSource(file.getPath());
                     } catch (IOException e) {
