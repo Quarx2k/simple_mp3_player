@@ -3,10 +3,13 @@ package ru.quarx2k.simplemp3player;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -41,6 +44,7 @@ public class MainActivity extends Activity {
     CustomAdapter adapter;
     public View row;
     private MediaPlayer mediaPlayer;
+    private String destDir;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,30 +52,61 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         final ListView musicList = (ListView) this.findViewById(R.id.MusicList);
         adapter = new CustomAdapter(this, mMusicData, R.layout.activity_main);
+        ArrayList<String> files = new ArrayList<String>();
+        destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
+        File playlist = new File(destDir + "/links.txt");
 
         // Create dir in Android/data/
-        String pName = this.getPackageName();
-        String destDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files";
         File myFilesDir = new File(destDir);
         myFilesDir.mkdirs();
 
-        ArrayList<String> files = new ArrayList<String>();
-        try {
-            files = readPlaylisfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
-            for (int i = 0; i < files.size(); i++) {
-
-                mMusicData.add(new MusicData(files.get(i)));
-                final String item = mMusicData.get(i).name;
-                final String fname = new File(item.toString()).getName();
-                final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
-                File file = new File(fullPath);
-                if (file.exists()) {
-                    updateMediaMetadata(fullPath, i);
-                } else {
-                    downloadFile(item.toString(), i);
+        // if Network connection not available and if playlist and music already downloaded.
+        if (!isNetworkAvailable()) {
+            if (playlist.exists()) {
+                try {
+                    files = readPlaylisfromSdcard(playlist.getPath());
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
+                for (int i = 0; i < files.size(); i++) {
+                    mMusicData.add(new MusicData(files.get(i)));
+                    final String item = mMusicData.get(i).name;
+                    final String fname = new File(item.toString()).getName();
+                    final String fullPath = destDir + fname;
+                    File file = new File(fullPath);
+                    Toast.makeText(getApplicationContext(), fullPath, Toast.LENGTH_SHORT).show();
+                    if (file.exists()) {
+                        updateMediaMetadata(fullPath, i);
+                    } else {
+                        mMusicData.set(i, new MusicData(files.get(i).toString() + "\n" + "File not downloaded yet"));// + "\n" + "Touch to retry"));
+                    }
+                }
+                mMusicData.add(new MusicData("Network connection not available" + "\n" + "But something already downloaded!"));
+            } else {
+                mMusicData.add(new MusicData("Network connection not available" + "\n" + "And nothing downloaded already"));
             }
-        } catch (IOException e) {
+        } else {
+            try {
+                files = readPlaylisfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
+                for (int i = 0; i < files.size(); i++) {
+
+                    mMusicData.add(new MusicData(files.get(i)));
+                    final String item = mMusicData.get(i).name;
+                    final String fname = new File(item.toString()).getName();
+                    final String fullPath = destDir + fname;
+                    File file = new File(fullPath);
+                    if (file.exists()) {
+                            updateMediaMetadata(fullPath, i);
+                    } else {
+                        if (!isNetworkAvailable()) {
+                            Toast.makeText(getApplicationContext(), "Network connection not available", Toast.LENGTH_SHORT).show();
+                        } else {
+                            downloadFile(item.toString(), i);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+            }
         }
 
         musicList.setAdapter(adapter);
@@ -82,7 +117,15 @@ public class MainActivity extends Activity {
                 String pName = getPackageName();
                 final String item = mMusicData.get(i).name;
                 final String fname = new File(item.toString()).getName();
-                final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
+                final String fullPath = destDir + fname;
+                File file = new File(fullPath);
+                if (file.exists()) {
+                    updateMediaMetadata(fullPath, i);
+                    //  } else {
+                    //      downloadFile(item.toString(), i);
+                    //  }
+                }
+
                 if (row != null) {
                     row.setBackgroundResource(android.R.color.holo_orange_light);
                 }
@@ -132,6 +175,13 @@ public class MainActivity extends Activity {
             }
         }); */
 
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager
+                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -159,7 +209,7 @@ public class MainActivity extends Activity {
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
         FileInputStream fstream;
-        fstream = new FileInputStream(Environment.getExternalStorageDirectory().getPath() + "/" + "fname");
+        fstream = new FileInputStream(fname);
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
