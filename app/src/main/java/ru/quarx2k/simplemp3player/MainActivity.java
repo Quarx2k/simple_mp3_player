@@ -2,36 +2,24 @@ package ru.quarx2k.simplemp3player;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.res.Configuration;
-import android.graphics.Color;
-import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
-import android.text.Layout;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
-import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +38,9 @@ public class MainActivity extends Activity {
     private MediaPlayer mediaPlayer = new MediaPlayer();
     private String destDir;
     int current_song = -1;
+    static String url_playlist = "http://www.quarx2k.ru/.mp3/links.txt";
+    static String playlist_name = "links.txt";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,7 +49,7 @@ public class MainActivity extends Activity {
         adapter = new CustomAdapter(this, mMusicData, R.layout.activity_main);
         ArrayList<String> files = new ArrayList<String>();
         destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
-        final File playlist = new File(destDir + "/links.txt");
+        final File playlist = new File(destDir + playlist_name);
 
         // Create dir in Android/data/
         File myFilesDir = new File(destDir);
@@ -68,7 +59,7 @@ public class MainActivity extends Activity {
         if (!isNetworkAvailable()) {
             if (playlist.exists()) {
                 try {
-                    files = readPlaylistfromSdcard(playlist.getPath());
+                    files = readPlaylistfromSdcard(playlist_name);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -89,29 +80,8 @@ public class MainActivity extends Activity {
                 mMusicData.add(new MusicData(getString(R.string.network_not_available) + "\n" + getString(R.string.files_not_exist)));
             }
         } else {
-            try {
-                files = readPlaylistfromUrl("http://www.quarx2k.ru/.mp3/links.txt");
-                for (int i = 0; i < files.size(); i++) {
-
-                    mMusicData.add(new MusicData(files.get(i)));
-                    final String item = mMusicData.get(i).name;
-                    final String fname = new File(item.toString()).getName();
-                    final String fullPath = destDir + fname;
-                    File file = new File(fullPath);
-                    if (file.exists()) {
-                            updateMediaMetadata(fullPath, i);
-                    } else {
-                        if (!isNetworkAvailable()) {
-                            Toast.makeText(getApplicationContext(), getString(R.string.network_not_available), Toast.LENGTH_SHORT).show();
-                        } else {
-                            downloadFile(item.toString(), i);
-                        }
-                    }
-                }
-            } catch (IOException e) {
-            }
+           downloadFile((url_playlist), -1, true);
         }
-
         musicList.setAdapter(adapter);
 
         musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -120,7 +90,7 @@ public class MainActivity extends Activity {
                 ArrayList<String> files = new ArrayList<String>();
 
                 try {
-                    files = readPlaylistfromSdcard(playlist.getPath());
+                    files = readPlaylistfromSdcard(playlist_name);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -183,43 +153,28 @@ public class MainActivity extends Activity {
         });
     }
 
-        /*
-        // Read list of files  TODO for sdcard
+    public void fistStartInit() {
+        ArrayList<String> files = new ArrayList<String>();
         try {
-            files = readTextfile("links.txt");
+            files = readPlaylistfromSdcard(playlist_name);
         } catch (IOException e) {
-            AlertDialog.Builder alert = new AlertDialog.Builder(this);
-            alert.setMessage("Error while downloading lis of files");
-            alert.setPositiveButton("Ok",
-                    new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int id) {
-                            dialog.cancel();
-                        }
-                    });
-
-            AlertDialog alert1 = alert.create();
-            alert1.show();
             e.printStackTrace();
         }
-        */
-        /* //Download on click
-        musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                String pName =  getPackageName();
-                final String item = mMusicData.get(i).name;
-                final String fname = new File(item.toString()).getName();
-                final String fullPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pName + "/files/" + fname;
-                File file = new File(fullPath);
-                Toast.makeText(getApplicationContext(), fullPath, Toast.LENGTH_SHORT).show();
-                if(file.exists()) {
-                    Toast.makeText(getApplicationContext(), "This file already downloaded", Toast.LENGTH_SHORT).show();
-                    return;
-                } else {
-                    downloadFile(item.toString(), i);
-                }
+        for (int i = 0; i < files.size(); i++) {
+            mMusicData.add(new MusicData(files.get(i)));
+            final String item = mMusicData.get(i).name;
+            final String fname = new File(item.toString()).getName();
+            final String fullPath = destDir + fname;
+            File file = new File(fullPath);
+            Log.e(TAG, files.toString());
+            if (file.exists()) {
+                updateMediaMetadata(fullPath, i);
+            } else {
+                downloadFile(item.toString(), i, false);
             }
-        }); */
+        }
+        adapter.notifyDataSetChanged();
+    }
 
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager
@@ -228,34 +183,12 @@ public class MainActivity extends Activity {
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
     public ArrayList<String> readPlaylistfromSdcard(String fname) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
         FileInputStream fstream;
-        fstream = new FileInputStream(fname);
+        fstream = new FileInputStream(destDir + fname);
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
@@ -267,38 +200,19 @@ public class MainActivity extends Activity {
 
     }
 
-    public ArrayList<String> readPlaylistfromUrl(String url) throws IOException {
-
-        String strLine;
-        ArrayList<String> files = new ArrayList<String>();
-        FileInputStream fstream;
-        downloadFile(url, -2);
-        fstream = new FileInputStream(destDir + "links.txt");
-        BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
-
-        while ((strLine = br.readLine()) != null) {
-            files.add(strLine);
-        }
-
-        br.close();
-        return files;
-
-    }
-
-    private void downloadFile(final String url, final int num) {
-        final String pname =  this.getPackageName();
+    private void downloadFile(final String url, final int num, final boolean first_start) {
         final String fname = new File(url.toString()).getName();
-        final File downloadDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Android/data/" + pname + "/files/" + fname);
+        final File downloadDir = new File(destDir + fname);
 
         new AsyncTask<String, Integer, File>() {
             private Exception trace_error = null;
 
             @Override
             protected void onPreExecute() {
-                if (num >= 0 )
-                    mMusicData.set(num,new MusicData(getString(R.string.downloading) + "\n" + mMusicData.get(num).name));
-                if (adapter != null)
+                if (num >= 0 && adapter != null) {
+                    mMusicData.set(num, new MusicData(getString(R.string.downloading) + "\n" + mMusicData.get(num).name));
                     adapter.notifyDataSetChanged();
+                }
             }
 
             @Override
@@ -366,6 +280,10 @@ public class MainActivity extends Activity {
 
                      AlertDialog alert1 = alert.create();
                     alert1.show();
+                    return;
+                }
+                if (first_start){
+                    fistStartInit();
                     return;
                 }
               //  Toast.makeText(getApplicationContext(), "Download " + fname +" Finished", Toast.LENGTH_SHORT).show();
