@@ -78,12 +78,12 @@ public class MainActivity extends Activity {
                     if (file.exists()) {
                         updateMediaMetadata(fullPath, i);
                     } else {
-                        mMusicData.set(i, new MusicData(files.get(i).toString() + "\n" + "File not downloaded yet"));// + "\n" + "Touch to retry"));
+                        mMusicData.set(i, new MusicData(files.get(i).toString() + "\n" + getString(R.string.file_not_exist)));// + "\n" + "Touch to retry"));
                     }
                 }
-                mMusicData.add(new MusicData("Network connection not available" + "\n" + "But something already downloaded!"));
+                mMusicData.add(new MusicData(getString(R.string.network_not_available) + "\n" + "But something already downloaded!"));
             } else {
-                mMusicData.add(new MusicData("Network connection not available" + "\n" + "And nothing downloaded already"));
+                mMusicData.add(new MusicData(getString(R.string.network_not_available) + "\n" + getString(R.string.files_not_exist)));
             }
         } else {
             try {
@@ -99,7 +99,7 @@ public class MainActivity extends Activity {
                             updateMediaMetadata(fullPath, i);
                     } else {
                         if (!isNetworkAvailable()) {
-                            Toast.makeText(getApplicationContext(), "Network connection not available", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getApplicationContext(), getString(R.string.network_not_available), Toast.LENGTH_SHORT).show();
                         } else {
                             downloadFile(item.toString(), i);
                         }
@@ -250,7 +250,7 @@ public class MainActivity extends Activity {
             @Override
             protected void onPreExecute() {
                 if (num >= 0 )
-                    mMusicData.set(num,new MusicData("Downloading in progress...." + "\n" + mMusicData.get(num).name));
+                    mMusicData.set(num,new MusicData(getString(R.string.downloading) + "\n" + mMusicData.get(num).name));
                 if (adapter != null)
                     adapter.notifyDataSetChanged();
             }
@@ -309,8 +309,8 @@ public class MainActivity extends Activity {
             protected void onPostExecute(File file) {
                 if (trace_error != null) {
                     AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this);
-                    alert.setTitle("Error while downloading!");
-                    alert.setMessage("Please check url of file\n" + url.toString());
+                    alert.setTitle(getString(R.string.download_err));
+                    alert.setMessage(getString(R.string.check_url) + "\n" + url.toString());
                     alert.setPositiveButton("Ok",
                             new DialogInterface.OnClickListener() {
                                 public void onClick(DialogInterface dialog, int id) {
@@ -338,9 +338,9 @@ public class MainActivity extends Activity {
         long m = (duration - h * 3600) / 60;
         long s = duration - (h * 3600 + m * 60);
 
-        mMusicData.set(num,new MusicData("Artist: " + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n" +
-                "Album: "+ metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n" +
-                "Duration: " + m + ":" + s));
+        mMusicData.set(num,new MusicData(getString(R.string.artist) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n" +
+                getString(R.string.song) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n" +
+                getString(R.string.duration) + m + ":" + s));
 
         adapter.notifyDataSetChanged();
     }
