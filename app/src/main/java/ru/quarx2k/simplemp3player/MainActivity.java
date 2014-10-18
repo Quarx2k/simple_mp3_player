@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         final ListView musicList = (ListView) this.findViewById(R.id.MusicList);
-        adapter = new CustomAdapter(this, mMusicData, R.layout.activity_main);
+        adapter = new CustomAdapter(this, mMusicData, R.layout.music_data_list);
         ArrayList<String> files = new ArrayList<String>();
         destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
         final File playlist = new File(destDir + playlist_name);
@@ -64,20 +64,19 @@ public class MainActivity extends Activity {
                     e.printStackTrace();
                 }
                 for (int i = 0; i < files.size(); i++) {
-                    mMusicData.add(new MusicData(files.get(i)));
-                    final String item = mMusicData.get(i).name;
-                    final String fname = new File(item.toString()).getName();
+                    final String fname = new File(files.get(i)).getName();
                     final String fullPath = destDir + fname;
+                    mMusicData.add(new MusicData(false, null, null, null, fullPath, files.get(i)));
                     File file = new File(fullPath);
                     if (file.exists()) {
                         updateMediaMetadata(fullPath, i);
                     } else {
-                        mMusicData.set(i, new MusicData(files.get(i).toString() + "\n" + getString(R.string.file_not_exist)));// + "\n" + "Touch to retry"));
+                        mMusicData.set(i, new MusicData(false, files.get(i).toString() + "\n" + getString(R.string.file_not_exist), null, null, null, null));// + "\n" + "Touch to retry"));
                     }
                 }
-                mMusicData.add(new MusicData(getString(R.string.network_not_available) + "\n" + "But something already downloaded!"));
+               // mMusicData.add(new MusicData(false, getString(R.string.network_not_available) + "\n" + "But something already downloaded!", null, null, null, null));
             } else {
-                mMusicData.add(new MusicData(getString(R.string.network_not_available) + "\n" + getString(R.string.files_not_exist)));
+                mMusicData.add(new MusicData(false, getString(R.string.network_not_available) + "\n" + getString(R.string.files_not_exist), null, null, null, null));
             }
         } else {
            downloadFile((url_playlist), -1, true);
@@ -161,16 +160,14 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         for (int i = 0; i < files.size(); i++) {
-            mMusicData.add(new MusicData(files.get(i)));
-            final String item = mMusicData.get(i).name;
-            final String fname = new File(item.toString()).getName();
+            final String fname = new File(files.get(i)).getName();
             final String fullPath = destDir + fname;
-            File file = new File(fullPath);
-            Log.e(TAG, files.toString());
+            mMusicData.add(new MusicData(false, null, null, null, fullPath, files.get(i)));
+            File file = new File(mMusicData.get(i).getFilename());
             if (file.exists()) {
-                updateMediaMetadata(fullPath, i);
+                updateMediaMetadata(mMusicData.get(i).getFilename(), i);
             } else {
-                downloadFile(item.toString(), i, false);
+                downloadFile(mMusicData.get(i).getUrl(), i, false);
             }
         }
         adapter.notifyDataSetChanged();
@@ -210,7 +207,7 @@ public class MainActivity extends Activity {
             @Override
             protected void onPreExecute() {
                 if (num >= 0 && adapter != null) {
-                    mMusicData.set(num, new MusicData(getString(R.string.downloading) + "\n" + mMusicData.get(num).name));
+                    mMusicData.set(num, new MusicData(true, null, null, null, null, url));
                     adapter.notifyDataSetChanged();
                 }
             }
@@ -297,17 +294,23 @@ public class MainActivity extends Activity {
         metaRetriver = new MediaMetadataRetriever();
         metaRetriver.setDataSource(mediaFile);
         File file = new File(mediaFile);
-        long durationMsec = Long.parseLong(metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
-        long duration = durationMsec / 1000;
-        long h = duration / 3600;
-        long m = (duration - h * 3600) / 60;
-        long s = duration - (h * 3600 + m * 60);
-        String artist = getString(R.string.artist) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST) + "\n";
-        String song = getString(R.string.song) + metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) + "\n";
-        String fileName = getString(R.string.file_name) + file.getName() + "\n";
+        String duration = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        String artist = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST);
+        String song = metaRetriver .extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
 
-        mMusicData.set(num,new MusicData(artist  +  song  + fileName +
-                getString(R.string.duration) + m + ":" + s));
+        long dur = Long.parseLong(duration);
+        String sec = String.valueOf((dur % 60000) / 1000);
+        String min = String.valueOf(dur / 60000);
+
+        if (sec.length() == 1) {
+            duration = "0" + min + ":0" + sec;
+        }else {
+            duration = "0" + min + ":" + sec;
+        }
+        String fileName = file.getName();
+        String url = mMusicData.get(num).getUrl();
+
+        mMusicData.set(num ,new MusicData(false, artist, song, duration , fileName, url));
 
         adapter.notifyDataSetChanged();
     }
