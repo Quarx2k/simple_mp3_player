@@ -2,11 +2,14 @@ package ru.quarx2k.simplemp3player;
 
 import android.content.Context;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -20,6 +23,7 @@ public class CustomAdapter extends ArrayAdapter<MusicData> {
     private Context context;
     private int layoutResourceId;
     private List<MusicData> mData;
+    private static final String TAG = "SimpleMp3Player-Adapter";
 
     public CustomAdapter(Context context, ArrayList<MusicData> musicData, int layoutResourceId) {
         super(context, layoutResourceId, musicData);
@@ -55,6 +59,7 @@ public class CustomAdapter extends ArrayAdapter<MusicData> {
         View row = convertView;
         Holder holder;
         Context ctx = getContext();
+
         if (row == null) {
             LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             row = inflater.inflate(layoutResourceId, null);
@@ -66,7 +71,6 @@ public class CustomAdapter extends ArrayAdapter<MusicData> {
             holder.duration = (TextView) row.findViewById(R.id.duration);
             holder.filename = (TextView) row.findViewById(R.id.filename);
             holder.url = (TextView) row.findViewById(R.id.url);
-
             row.setTag(holder);
         } else {
             holder = (Holder) row.getTag();
@@ -111,7 +115,6 @@ public class CustomAdapter extends ArrayAdapter<MusicData> {
                 holder.url.setVisibility(View.GONE);
             }
         }
-
         return row;
     }
    }

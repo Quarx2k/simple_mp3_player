@@ -31,21 +31,24 @@ import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     private static final String TAG = "SimpleMp3Player";
-    ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
-    MediaMetadataRetriever metaRetriver;
-    CustomAdapter adapter;
-    public View row;
+
+    private ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
+    private MediaMetadataRetriever metaRetriver;
+    private int current_song = -1;
+    private View row;
     private MediaPlayer mediaPlayer = new MediaPlayer();
-    private String destDir;
-    int current_song = -1;
-    static String url_playlist = "http://www.quarx2k.ru/.mp3/links.txt";
-    static String playlist_name = "links.txt";
+    private static ListView musicList = null;
+    private static CustomAdapter adapter;
+    private static String destDir;
+    private static String url_playlist = "http://www.quarx2k.ru/.mp3/links.txt";
+    private static String playlist_name = "links.txt";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final ListView musicList = (ListView) this.findViewById(R.id.MusicList);
+
+        musicList = (ListView) this.findViewById(R.id.MusicList);
         adapter = new CustomAdapter(this, mMusicData, R.layout.music_data_list);
         ArrayList<String> files = new ArrayList<String>();
         destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
@@ -64,90 +67,37 @@ public class MainActivity extends Activity {
                     e.printStackTrace();
                 }
                 for (int i = 0; i < files.size(); i++) {
-                    final String fname = new File(files.get(i)).getName();
-                    final String fullPath = destDir + fname;
-                    mMusicData.add(new MusicData(false, null, null, null, fullPath, files.get(i)));
-                    File file = new File(fullPath);
+                    final String fname = destDir + new File(files.get(i)).getName();
+                    mMusicData.add(new MusicData(false, null, null, null, null, files.get(i)));
+                    File file = new File(fname);
                     if (file.exists()) {
-                        updateMediaMetadata(fullPath, i);
+                        updateMediaMetadata(fname, i);
                     } else {
-                        mMusicData.set(i, new MusicData(false, files.get(i).toString() + "\n" + getString(R.string.file_not_exist), null, null, null, null));// + "\n" + "Touch to retry"));
+                        mMusicData.set(i, new MusicData(false, null, fname, null, getString(R.string.file_not_exist), files.get(i)));
                     }
                 }
-               // mMusicData.add(new MusicData(false, getString(R.string.network_not_available) + "\n" + "But something already downloaded!", null, null, null, null));
             } else {
-                mMusicData.add(new MusicData(false, getString(R.string.network_not_available) + "\n" + getString(R.string.files_not_exist), null, null, null, null));
+                mMusicData.add(new MusicData(false, getString(R.string.network_not_available), null, null, getString(R.string.files_not_exist), null));
             }
         } else {
            downloadFile((url_playlist), -1, true);
         }
+
         musicList.setAdapter(adapter);
 
         musicList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                ArrayList<String> files = new ArrayList<String>();
-
-                try {
-                    files = readPlaylistfromSdcard(playlist_name);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                if (i >= files.size() )
+                if (i >= mMusicData.size() )
                     return;
 
-                File file = new File(files.get(i));
-                file = new File(destDir + file.getName());
+                File file = new File(destDir + mMusicData.get(i).getFilename());
 
-                if (file.exists()) {
-                    updateMediaMetadata(file.getPath(), i);
-                } else {
+                if (!file.exists()) {
                     Toast.makeText(getApplicationContext(), getString(R.string.file_not_exist), Toast.LENGTH_SHORT).show();
                     return;
                 }
-                if (row != null) {
-                    row.setBackgroundResource(android.R.color.white);
-                }
-
-                if(mediaPlayer.isPlaying()) {
-                    mediaPlayer.stop();
-                    mediaPlayer.reset();
-                    row = view;
-                    view.setBackgroundResource(android.R.color.white);
-                    if (current_song != i) {
-                        row = view;
-                        view.setBackgroundResource(android.R.color.holo_green_light);
-                        try {
-                            mediaPlayer.setDataSource(file.getPath());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        try {
-                            mediaPlayer.prepare();
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        mediaPlayer.start();
-                        current_song = i;
-                    }
-                } else {
-                    row = view;
-                    view.setBackgroundResource(android.R.color.holo_green_light);
-                    current_song = i;
-                    mediaPlayer.reset();
-                    try {
-                        mediaPlayer.setDataSource(file.getPath());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    try {
-                        mediaPlayer.prepare();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    mediaPlayer.start();
-                }
+                startPlaying(file.getPath(), i, view);
             }
         });
     }
@@ -160,12 +110,11 @@ public class MainActivity extends Activity {
             e.printStackTrace();
         }
         for (int i = 0; i < files.size(); i++) {
-            final String fname = new File(files.get(i)).getName();
-            final String fullPath = destDir + fname;
-            mMusicData.add(new MusicData(false, null, null, null, fullPath, files.get(i)));
-            File file = new File(mMusicData.get(i).getFilename());
+            final String fname = destDir + new File(files.get(i)).getName();
+            File file = new File(fname);
+            mMusicData.add(new MusicData(false, null, null, null, null, files.get(i)));
             if (file.exists()) {
-                updateMediaMetadata(mMusicData.get(i).getFilename(), i);
+                updateMediaMetadata(fname, i);
             } else {
                 downloadFile(mMusicData.get(i).getUrl(), i, false);
             }
@@ -173,6 +122,49 @@ public class MainActivity extends Activity {
         adapter.notifyDataSetChanged();
     }
 
+    public void startPlaying(String path, int song, View view) {
+
+       if (row != null) {
+           row.setBackgroundResource(android.R.color.white);
+       }
+
+        row = view;
+        if(mediaPlayer.isPlaying()) {
+            mediaPlayer.stop();
+            mediaPlayer.reset();
+            view.setBackgroundResource(android.R.color.white);
+            if (current_song != song) {
+                view.setBackgroundResource(android.R.color.holo_green_light);
+                try {
+                    mediaPlayer.setDataSource(path);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    mediaPlayer.prepare();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                mediaPlayer.start();
+                current_song = song;
+            }
+        } else {
+            view.setBackgroundResource(android.R.color.holo_green_light);
+            current_song = song;
+            mediaPlayer.reset();
+            try {
+                mediaPlayer.setDataSource(path);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                mediaPlayer.prepare();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            mediaPlayer.start();
+        }
+    }
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager
                 = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -184,8 +176,7 @@ public class MainActivity extends Activity {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
-        FileInputStream fstream;
-        fstream = new FileInputStream(destDir + fname);
+        FileInputStream fstream = new FileInputStream(destDir + fname);;
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
@@ -194,7 +185,6 @@ public class MainActivity extends Activity {
 
         br.close();
         return files;
-
     }
 
     private void downloadFile(final String url, final int num, final boolean first_start) {
@@ -279,11 +269,12 @@ public class MainActivity extends Activity {
                     alert1.show();
                     return;
                 }
+
                 if (first_start){
                     fistStartInit();
                     return;
                 }
-              //  Toast.makeText(getApplicationContext(), "Download " + fname +" Finished", Toast.LENGTH_SHORT).show();
+
                 if (num >= 0)
                     updateMediaMetadata(downloadDir.toString(), num);
             }
