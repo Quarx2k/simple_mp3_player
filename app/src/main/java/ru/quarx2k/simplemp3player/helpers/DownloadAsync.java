@@ -1,11 +1,6 @@
-package ru.quarx2k.simplemp3player;
+package ru.quarx2k.simplemp3player.helpers;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.os.AsyncTask;
-import android.os.Environment;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -14,6 +9,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+
+import ru.quarx2k.simplemp3player.MainActivity;
+import ru.quarx2k.simplemp3player.interfaces.DownloadInterface;
 
 /**
  * Created by Quarx2k on 21.10.2014.
@@ -86,7 +84,7 @@ public class DownloadAsync extends AsyncTask {
 
             @Override
             protected void onPostExecute(File file) {
-                delegate.processDownloadFinish(first_start, downloadPath.toString(), num);
+                delegate.processDownloadFinish(first_start, downloadPath.toString(), url, num);
                 if (trace_error != null) {
                     //TODO: Implement error message.
                 }
