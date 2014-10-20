@@ -29,7 +29,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements DownloadInterface {
     private static final String TAG = "SimpleMp3Player";
 
     private ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
@@ -39,49 +39,28 @@ public class MainActivity extends Activity {
     private MediaPlayer mediaPlayer = new MediaPlayer();
     private static ListView musicList = null;
     private static CustomAdapter adapter;
-    private static String destDir;
+    public static String destDir;
     private static String url_playlist = "http://www.quarx2k.ru/.mp3/links.txt";
     private static String playlist_name = "links.txt";
+
+    DownloadAsync asyncTask =new DownloadAsync();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        asyncTask.delegate = this;
         musicList = (ListView) this.findViewById(R.id.MusicList);
         adapter = new CustomAdapter(this, mMusicData, R.layout.music_data_list);
-        ArrayList<String> files = new ArrayList<String>();
         destDir = Environment.getExternalStorageDirectory().getPath() + "/Android/data/" + getPackageName() + "/files/";
-        final File playlist = new File(destDir + playlist_name);
 
         // Create dir in Android/data/
         File myFilesDir = new File(destDir);
         myFilesDir.mkdirs();
 
         // if Network connection not available and if playlist and music already downloaded.
-        if (!isNetworkAvailable()) {
-            if (playlist.exists()) {
-                try {
-                    files = readPlaylistfromSdcard(playlist_name);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                for (int i = 0; i < files.size(); i++) {
-                    final String fname = destDir + new File(files.get(i)).getName();
-                    mMusicData.add(new MusicData(false, null, null, null, null, files.get(i)));
-                    File file = new File(fname);
-                    if (file.exists()) {
-                        updateMediaMetadata(fname, i);
-                    } else {
-                        mMusicData.set(i, new MusicData(false, null, fname, null, getString(R.string.file_not_exist), files.get(i)));
-                    }
-                }
-            } else {
-                mMusicData.add(new MusicData(false, getString(R.string.network_not_available), null, null, getString(R.string.files_not_exist), null));
-            }
-        } else {
-           downloadFile((url_playlist), -1, true);
-        }
+        initializingPlaylist(true);
 
         musicList.setAdapter(adapter);
 
@@ -97,46 +76,60 @@ public class MainActivity extends Activity {
                     Toast.makeText(getApplicationContext(), getString(R.string.file_not_exist), Toast.LENGTH_SHORT).show();
                     return;
                 }
-                startPlaying(file.getPath(), i, view);
+                startPlaying(i);
             }
         });
     }
 
-    public void fistStartInit() {
-        ArrayList<String> files = new ArrayList<String>();
-        try {
-            files = readPlaylistfromSdcard(playlist_name);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        for (int i = 0; i < files.size(); i++) {
-            final String fname = destDir + new File(files.get(i)).getName();
-            File file = new File(fname);
-            mMusicData.add(new MusicData(false, null, null, null, null, files.get(i)));
-            if (file.exists()) {
-                updateMediaMetadata(fname, i);
-            } else {
-                downloadFile(mMusicData.get(i).getUrl(), i, false);
-            }
-        }
+    public void updateUi()
+    {
         adapter.notifyDataSetChanged();
     }
 
-    public void startPlaying(String path, int song, View view) {
+    public void initializingPlaylist(Boolean first_start) {
+        ArrayList<String> files = null;
+        final File playlist = new File(destDir + playlist_name);
 
-       if (row != null) {
-           row.setBackgroundResource(android.R.color.white);
-       }
+        if (playlist.exists()) {
+            try {
+                files = readPlaylistfromSdcard(playlist.getPath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
-        row = view;
+        if (first_start && isNetworkAvailable()) {  //Download or update playlist at first start.
+            asyncTask.downloadFile((url_playlist), -1, true);
+            return;
+        } else if (!isNetworkAvailable() && files == null) { //Notify if playlist not exist and network not available.
+            mMusicData.add(new MusicData(false, getString(R.string.network_not_available), null, null, getString(R.string.files_not_exist), null));
+        } else { //Get info from playlist.
+            for (int i = 0; i < files.size(); i++) {
+                final String fname = destDir + new File(files.get(i)).getName();
+                File file = new File(fname);
+                mMusicData.add(new MusicData(false, null, null, null, null, files.get(i)));
+                if (file.exists()) {
+                    updateMediaMetadata(fname, i);
+                } else {
+                    if (!isNetworkAvailable()) {
+                        mMusicData.set(i, new MusicData(false, null, file.getName(), null, getString(R.string.file_not_exist), files.get(i)));
+                    } else {
+                        asyncTask.downloadFile(mMusicData.get(i).getUrl(), i, false);
+                    }
+                }
+            }
+        }
+        updateUi();
+    }
+
+    public void startPlaying(int song) {
+        String song_path = destDir + mMusicData.get(song).getFilename();
         if(mediaPlayer.isPlaying()) {
             mediaPlayer.stop();
             mediaPlayer.reset();
-            view.setBackgroundResource(android.R.color.white);
             if (current_song != song) {
-                view.setBackgroundResource(android.R.color.holo_green_light);
                 try {
-                    mediaPlayer.setDataSource(path);
+                    mediaPlayer.setDataSource(song_path);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -149,11 +142,10 @@ public class MainActivity extends Activity {
                 current_song = song;
             }
         } else {
-            view.setBackgroundResource(android.R.color.holo_green_light);
             current_song = song;
             mediaPlayer.reset();
             try {
-                mediaPlayer.setDataSource(path);
+                mediaPlayer.setDataSource(song_path);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -164,6 +156,13 @@ public class MainActivity extends Activity {
             }
             mediaPlayer.start();
         }
+
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                    Log.e(TAG, "song end");
+            }
+        });
     }
     private boolean isNetworkAvailable() {
         ConnectivityManager connectivityManager
@@ -172,11 +171,11 @@ public class MainActivity extends Activity {
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
-    public ArrayList<String> readPlaylistfromSdcard(String fname) throws IOException {
+    public ArrayList<String> readPlaylistfromSdcard(String filePath) throws IOException {
 
         String strLine;
         ArrayList<String> files = new ArrayList<String>();
-        FileInputStream fstream = new FileInputStream(destDir + fname);;
+        FileInputStream fstream = new FileInputStream(filePath);
         BufferedReader br = new BufferedReader(new InputStreamReader(fstream));
 
         while ((strLine = br.readLine()) != null) {
@@ -185,100 +184,6 @@ public class MainActivity extends Activity {
 
         br.close();
         return files;
-    }
-
-    private void downloadFile(final String url, final int num, final boolean first_start) {
-        final String fname = new File(url.toString()).getName();
-        final File downloadDir = new File(destDir + fname);
-
-        new AsyncTask<String, Integer, File>() {
-            private Exception trace_error = null;
-
-            @Override
-            protected void onPreExecute() {
-                if (num >= 0 && adapter != null) {
-                    mMusicData.set(num, new MusicData(true, null, null, null, null, url));
-                    adapter.notifyDataSetChanged();
-                }
-            }
-
-            @Override
-            protected File doInBackground(String... params) {
-                final URL url;
-                HttpURLConnection urlConnection;
-                InputStream inputStream;
-                int totalSize;
-                int downloadedSize;
-                byte[] buffer;
-                int bufferLength;
-
-                File file = null;
-                FileOutputStream fos = null;
-                try {
-                    url = new URL(params[0]);
-                    urlConnection = (HttpURLConnection) url.openConnection();
-
-                    urlConnection.setRequestMethod("GET");
-                    urlConnection.setDoOutput(true);
-                    urlConnection.connect();
-                    fos = new FileOutputStream(downloadDir.toString());
-
-                    inputStream = urlConnection.getInputStream();
-
-                    totalSize = urlConnection.getContentLength();
-                    downloadedSize = 0;
-
-                    buffer = new byte[1024];
-                    bufferLength = 0;
-
-                    while ((bufferLength = inputStream.read(buffer)) > 0) {
-                        fos.write(buffer, 0, bufferLength);
-                        downloadedSize += bufferLength;
-                        publishProgress(downloadedSize, totalSize);
-                    }
-
-                    fos.close();
-                    inputStream.close();
-
-                    return file;
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                    trace_error = e;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    trace_error = e;
-                }
-
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(File file) {
-                if (trace_error != null) {
-                    AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this);
-                    alert.setTitle(getString(R.string.download_err));
-                    alert.setMessage(getString(R.string.check_url) + "\n" + url.toString());
-                    alert.setPositiveButton("Ok",
-                            new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int id) {
-                                    dialog.cancel();
-                                }
-                            });
-
-                     AlertDialog alert1 = alert.create();
-                    alert1.show();
-                    return;
-                }
-
-                if (first_start){
-                    fistStartInit();
-                    return;
-                }
-
-                if (num >= 0)
-                    updateMediaMetadata(downloadDir.toString(), num);
-            }
-        }.execute(url);
     }
 
     public void updateMediaMetadata(String mediaFile, int num) {
@@ -301,8 +206,25 @@ public class MainActivity extends Activity {
         String fileName = file.getName();
         String url = mMusicData.get(num).getUrl();
 
-        mMusicData.set(num ,new MusicData(false, artist, song, duration , fileName, url));
+        mMusicData.set(num ,new MusicData(false, artist, song, duration ,fileName, url));
 
-        adapter.notifyDataSetChanged();
+        updateUi();
+    }
+
+    @Override
+    public void processDownloadFinish(Boolean first_start, String fname, int num) {
+        if (first_start) {
+            initializingPlaylist(false);
+        } else {
+            updateMediaMetadata(fname, num);
+        }
+    }
+
+    @Override
+    public void processDownloadStarted(String url, int num) {
+        if (num >= 0) {
+            mMusicData.set(num, new MusicData(true, null, null, null, null, url));
+            updateUi();
+        }
     }
 }
