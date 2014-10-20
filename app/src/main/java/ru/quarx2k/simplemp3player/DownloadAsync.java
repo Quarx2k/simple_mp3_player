@@ -20,11 +20,12 @@ import java.net.URL;
  */
 public class DownloadAsync extends AsyncTask {
     public DownloadInterface delegate = null;
+    private static String destDir = MainActivity.destDir;
 
     public void downloadFile(final String url, final int num, final boolean first_start) {
         final String fname = new File(url.toString()).getName();
 
-        final File downloadPath = new File(MainActivity.destDir + fname);
+        final File downloadPath = new File(destDir + fname);
         new AsyncTask<String, Integer, File>() {
             private Exception trace_error = null;
 
