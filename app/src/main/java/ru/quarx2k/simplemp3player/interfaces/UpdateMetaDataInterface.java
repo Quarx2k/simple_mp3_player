@@ -10,4 +10,5 @@ import ru.quarx2k.simplemp3player.MusicData;
 public interface UpdateMetaDataInterface
 {
     void readMetadataFinished(int num, ArrayList<String> data);
+    void readArrayMetadataFinished(ArrayList<MusicData> mdata);
 }

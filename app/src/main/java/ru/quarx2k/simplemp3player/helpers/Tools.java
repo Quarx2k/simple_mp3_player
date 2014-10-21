@@ -52,35 +52,69 @@ public class Tools  {
         return files;
     }
 
-    public void updateMediaMetadata(String mediaFile, final String url, final int num) {
-        ArrayList<String> musicData = null;
-        metaRetriver = new MediaMetadataRetriever();
-        metaRetriver.setDataSource(mediaFile);
-        final File file = new File(mediaFile);
-        String duration = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-        final String artist = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST);
-        final String song = metaRetriver .extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
-        long dur = Long.parseLong(duration);
+    private String getDuriaton(long dur) {
         String sec = String.valueOf((dur % 60000) / 1000);
         String min = String.valueOf(dur / 60000);
+        String duration;
 
         if (sec.length() == 1) {
             duration = "0" + min + ":0" + sec;
         }else {
             duration = "0" + min + ":" + sec;
         }
-        final String fduration = duration;
+       return duration;
+    }
+
+    public void updateArrayMediaMetadata(ArrayList<MusicData> musicData) {
+        metaRetriver = new MediaMetadataRetriever();
+        File file;
+        String mediaFile;
+        String artist;
+        String duration;
+        String dur;
+        String song;
+        int i;
+        if (musicData != null) {  //Update whole array of files
+            for (i = 0; i < musicData.size(); i++) {
+                mediaFile = musicData.get(i).getUrl();
+                file = new File(mediaFile);
+                metaRetriver.setDataSource(mediaFile);
+                dur = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                artist = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST);
+                song = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+                duration = getDuriaton(Long.parseLong(dur));
+                musicData.set(i, new MusicData(false, song, artist, duration, file.getName(), null));
+            }
+            delegate.readArrayMetadataFinished(musicData);
+        }
+    }
+
+
+    public void updateMediaMetadata(String mediaFile, final String url, final int num) {
+        ArrayList<String> musicData = null;
+        metaRetriver = new MediaMetadataRetriever();
+        final String artist;
+        String dur;
+        final String duration;
+        final File file;
+        final String song;
+
+        metaRetriver.setDataSource(mediaFile);
+        file = new File(mediaFile);
+        dur = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+        artist = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST);
+        song = metaRetriver .extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+        duration = getDuriaton(Long.parseLong(dur));
+
         musicData = new ArrayList<String>() {
             {
                 add(song);
                 add(artist);
-                add(fduration);
+                add(duration);
                 add(file.getName());
                 add(url);
             }
         };
-
         delegate.readMetadataFinished(num, musicData);
-
     }
 }
