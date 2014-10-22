@@ -1,25 +1,31 @@
-package ru.quarx2k.simplemp3player;
+package ru.quarx2k.simplemp3player.fragments;
 
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.Toast;
+import android.support.v4.app.FragmentActivity;
+import android.widget.RelativeLayout;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import ru.quarx2k.simplemp3player.helpers.DownloadAsync;
+import ru.quarx2k.simplemp3player.CustomAdapter;
+import ru.quarx2k.simplemp3player.MusicData;
+import ru.quarx2k.simplemp3player.R;
 import ru.quarx2k.simplemp3player.helpers.Tools;
-import ru.quarx2k.simplemp3player.interfaces.DownloadInterface;
 import ru.quarx2k.simplemp3player.interfaces.UpdateMetaDataInterface;
 
-public class LocalPlayer extends Activity implements UpdateMetaDataInterface {
+public class LocalPlayerFragment extends Fragment implements UpdateMetaDataInterface {
     private static final String TAG = "SimpleMp3Player";
 
     private ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
@@ -27,21 +33,22 @@ public class LocalPlayer extends Activity implements UpdateMetaDataInterface {
     private MediaPlayer mediaPlayer = new MediaPlayer();
     private static ListView musicList = null;
     private static CustomAdapter adapter;
-    private static String destDir = MainActivity.destDir;  //TODO Make dynamic
+    private static String destDir;  //TODO Make dynamic
     private static Context ctx;
 
     Tools tool = new Tools();
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.online_player_acitvity);
-        ctx = getApplicationContext();
-
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        RelativeLayout rLayout = (RelativeLayout) inflater.inflate(R.layout.player_acitvity, container, false);
+        ctx = getActivity();
         tool.delegate = this;
 
-        musicList = (ListView) this.findViewById(R.id.MusicList);
-        adapter = new CustomAdapter(this, mMusicData, R.layout.music_data_list);
+        destDir = getArguments().getString("playDir");
+        Log.e(TAG, "DIR: "+ destDir);
+
+        musicList = (ListView) rLayout.findViewById(R.id.MusicList);
+        adapter = new CustomAdapter(ctx, mMusicData, R.layout.music_data_list);
 
         initializingPlaylist(destDir);
 
@@ -55,6 +62,7 @@ public class LocalPlayer extends Activity implements UpdateMetaDataInterface {
                 startPlaying(i);
             }
         });
+        return  rLayout;
     }
 
     public void updateUi()

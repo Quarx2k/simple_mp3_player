@@ -1,29 +1,33 @@
-package ru.quarx2k.simplemp3player;
+package ru.quarx2k.simplemp3player.fragments;
 
 import android.app.Activity;
+import android.app.Fragment;
 import android.content.Context;
-import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 
+import ru.quarx2k.simplemp3player.CustomAdapter;
+import ru.quarx2k.simplemp3player.MainActivity;
+import ru.quarx2k.simplemp3player.MusicData;
+import ru.quarx2k.simplemp3player.R;
 import ru.quarx2k.simplemp3player.helpers.DownloadAsync;
 import ru.quarx2k.simplemp3player.helpers.Tools;
 import ru.quarx2k.simplemp3player.interfaces.DownloadInterface;
 import ru.quarx2k.simplemp3player.interfaces.UpdateMetaDataInterface;
 
-public class OnlinePlayer extends Activity implements DownloadInterface, UpdateMetaDataInterface {
+public class OnlinePlayerFragment extends Fragment implements DownloadInterface, UpdateMetaDataInterface {
     private static final String TAG = "SimpleMp3Player";
 
     private ArrayList<MusicData> mMusicData = new ArrayList<MusicData>();
@@ -38,16 +42,16 @@ public class OnlinePlayer extends Activity implements DownloadInterface, UpdateM
     Tools tool = new Tools();
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.online_player_acitvity);
-        ctx = getApplicationContext();
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        RelativeLayout rLayout = (RelativeLayout) inflater.inflate(R.layout.player_acitvity, container, false);
+
+        ctx = getActivity();
 
         downloadTask.delegate = this;
         tool.delegate = this;
 
-        musicList = (ListView) this.findViewById(R.id.MusicList);
-        adapter = new CustomAdapter(this, mMusicData, R.layout.music_data_list);
+        musicList = (ListView) rLayout.findViewById(R.id.MusicList);
+        adapter = new CustomAdapter(getActivity(), mMusicData, R.layout.music_data_list);
 
         initializingPlaylist(true);
 
@@ -68,6 +72,7 @@ public class OnlinePlayer extends Activity implements DownloadInterface, UpdateM
                 startPlaying(i);
             }
         });
+        return rLayout;
     }
 
     public void updateUi()
